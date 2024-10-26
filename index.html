@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบสุ่มเลขเสี่ยงโชค</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        .latest-result {
+            background: #1a1a2e;
+            border-bottom: 2px solid rgba(255, 99, 71, 0.5);
+            color: white;
+            padding: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .latest-result::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(45deg, 
+                rgba(255, 99, 71, 0.1), 
+                rgba(255, 99, 71, 0.05),
+                rgba(70, 130, 180, 0.1)
+            );
+            pointer-events: none;
+        }
+
+        .latest-result-content {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+
+        .result-header {
+            text-align: center;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #ffd700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .prize-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0.5rem 0;
+            padding: 0.8rem 1.2rem;
+            border: 1px solid rgba(255, 99, 71, 0.3);
+            border-radius: 8px;
+            background: linear-gradient(
+                to right,
+                rgba(255, 99, 71, 0.1),
+                rgba(70, 130, 180, 0.1)
+            );
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .prize-row:hover {
+            transform: translateX(5px);
+            box-shadow: -5px 0 15px rgba(255, 99, 71, 0.2);
+            border-left: 2px solid #ff6347;
+        }
+
+        .prize-label {
+            display: flex;
+            align-items: center;
+            gap: 0.8rem;
+            font-weight: bold;
+        }
+
+        .live-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            background-color: #ff6347;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #ff6347;
+            animation: blink 1.5s infinite;
+        }
+
+        .prize-number {
+            font-family: 'Courier New', monospace;
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+            letter-spacing: 3px;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 2rem;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .title {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        .subtitle {
+            color: #b8c1ec;
+            margin-bottom: 2rem;
+        }
+
+        .number-display {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .digit {
+            background: rgba(255, 255, 255, 0.1);
+            width: 50px;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .digit.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: #ffd700;
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .generate-btn {
+            background: linear-gradient(45deg, #ff6b6b, #ff8e8e);
+            border: none;
+            padding: 1rem 2rem;
+            font-size: 1.2rem;
+            color: white;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 80%;
+            max-width: 300px;
+        }
+
+        .generate-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+
+        .generate-btn:active {
+            transform: translateY(0);
+        }
+
+        .generate-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .winners-panel {
+            position: fixed;
+            right: 0;
+            bottom: 20px;
+            width: 280px;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 15px 0 0 15px;
+            padding: 15px;
+            box-shadow: -5px 0 20px rgba(0, 0, 0, 0.3);
+            z-index: 90;
+            border-left: 2px solid rgba(255, 215, 0, 0.3);
+            transform: translateX(290px);
+            transition: transform 0.3s ease-out;
+        }
+
+        .winners-panel.show {
+            transform: translateX(0);
+        }
+
+        .winners-toggle {
+            position: absolute;
+            left: -40px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            border: none;
+            color: #ffd700;
+            padding: 10px;
+            border-radius: 10px 0 0 10px;
+            cursor: pointer;
+            border-left: 2px solid rgba(255, 215, 0, 0.3);
+        }
+
+        .winners-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #ffd700;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 215, 0, 0.2);
+        }
+
+        .winners-list {
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .winner-item {
+            background: rgba(255, 255, 255, 0.05);
+            margin-bottom: 10px;
+            padding: 12px;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            animation: slideIn 0.5s ease-out;
+        }
+
+        .winner-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(-5px);
+        }
+
+        .winner-number {
+            color: #ffd700;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .winner-name {
+            color: #b8c1ec;
+            font-size: 0.9rem;
+            margin-bottom: 3px;
+            font-style: italic;
+        }
+
+        .winner-prize {
+            color: #ff6b6b;
+            font-size: 0.9rem;
+            margin-bottom: 3px;
+        }
+
+        .winner-amount {
+            color: #4CAF50;
+            font-size: 0.9rem;
+            margin-bottom: 3px;
+        }
+
+        .winner-time {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.8rem;
+        }
+
+        .contact-links {
+            position: fixed;
+            left: 20px;
+            bottom: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .contact-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            color: white;
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .contact-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @keyframes blink {
+            0% { opacity: 0.3; }
+            50% { opacity: 1; }
+            100% { opacity: 0.3; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .spinning {
+            animation: spin 1s linear infinite;
+        }
+
+        @media (max-width: 768px) {
+            .winners-panel {
+                position: fixed;
+                bottom: -300px;
+                left: 0;
+                right: 0;
+                width: 100%;
+                border-radius: 15px 15px 0 0;
+                border-left: none;
+                border-top: 2px solid rgba(255, 215, 0, 0.3);
+                transform: translateY(0);
+            }
+
+            .winners-panel.show {
+                transform: translateY(-320px);
+            }
+
+            .winners-toggle {
+                top: -40px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-radius: 10px 10px 0 0;
+                border-left: none;
+                border-top: 2px solid rgba(255, 215, 0, 0.3);
+            }
+
+            .winners-list {
+                max-height: 250px;
+            }
+
+            .prize-row {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+            
+            .prize-label {
+                justify-content: center;
+            }
+            
+            .digit {
+                width: 40px;
+                height: 60px;
+                font-size: 2rem;
+            }
+
+            .contact-links {
+                left: 10px;
+                bottom: 10px;
+            }
+            
+            .contact-link {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="latest-result">
+        <div class="latest-result-content">
+            <div class="result-header">
+                ผลรางวัลสลากกินแบ่งรัฐบาล งวดประจำวันที่ 1 พฤศจิกายน 2567
+            </div>
+            <div class="prize-row">
+                <div class="prize-label">
+                    <span class="live-dot"></span>
+                    รางวัลที่ 1
+                </div>
+                <div class="prize-number">482962</div>
+            </div>
+            <div class="prize-row">
+                <div class="prize-label">
+                    <span class="live-dot"></span>
+                    เลขท้าย 2 ตัว
+                </div>
+                <div class="prize-number">00</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <h1 class="title">สุ่มเลขสลากกินแบ่งรัฐบาล</h1>
+            <p class="subtitle">ระบบสุ่มเลข 6 หลัก</p>
+            <div class="number-display">
+                <div class="digit">0</div>
+                <div class="digit">0</div>
+                <div class="digit">0</div>
+                <div class="digit">0</div>
+                <div class="digit">0</div>
+                <div class="digit">0</div>
+            </div>
+            <button class="generate-btn">
+                <span class="dice-icon">🎲</span>
+                <span class="btn-text">สุ่มเลข</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="winners-panel">
+        <button class="winners-toggle" onclick="toggleWinnersPanel()">🏆</button>
+        <div class="winners-header">
+            <span class="trophy-icon">🏆</span>
+            ผู้โชคดีล่าสุด
+        </div>
+        <div class="winners-list">
+            <!-- จะถูกเติมโดย JavaScript -->
+        </div>
+    </div>
+
+    <div class="contact-links">
+        <a href="https://line.me/ti/p/ezTNyYbYDG" class="contact-link">
+            <span>💬</span> Line: @luxfan301
+        </a>
+        <a href="tel:0812345678" class="contact-link">
+            <span>📞</span> โทร: 080-778-9770
+        </a>
+        <a href="https://www.facebook.com/profile.php?id=61567852227314&is_tour_dismissed" class="contact-link">
+            <span>👥</span> Facebook: Random ja
+        </a>
+    </div>
+
+    <script>
+        const digits = document.querySelectorAll('.digit');
+        const generateBtn = document.querySelector('.generate-btn');
+        const diceIcon = document.querySelector('.dice-icon');
+        const btnText = document.querySelector('.btn-text');
+
+        const mockWinners = [
+            {
+                number: "482962",
+                name: "คุณสมชาย ใจดี",
+                prize: "ถูกรางวัลที่ 1",
+                time: "2 นาทีที่แล้ว",
+                amount: "6,000,000 บาท"
+            },
+            {
+                number: "482961",
+                name: "คุณสมหญิง รักดี",
+                prize: "ถูกรางวัลข้างเคียงรางวัลที่ 1",
+                time: "5 นาทีที่แล้ว",
+                amount: "100,000 บาท"
+            },
+            {
+                number: "123962",
+                name: "คุณมานี มีทรัพย์",
+                prize: "ถูกเลขท้าย 3 ตัว",
+                time: "10 นาทีที่แล้ว",
+                amount: "4,000 บาท"
+            }
+        ];
+
+        function generateRandomDigit() {
+            return Math.floor(Math.random() * 10);
+        }
+
+        function updateDigits(finalNumbers = null) {
+            digits.forEach((digit, index) => {
+                digit.textContent = finalNumbers ? finalNumbers[index] : generateRandomDigit();
+            });
+        }
+
+        function toggleWinnersPanel() {
+            const panel = document.querySelector('.winners-panel');
+            panel.classList.toggle('show');
+        }
+
+        function getRandomName() {
+            const firstNames = ['สมชาย', 'สมหญิง', 'มานี', 'ปานี', 'สมศักดิ์', 'สมศรี', 'วิชัย', 'วันดี', 'สมใจ', 'ใจดี'];
+            const lastNames = ['ใจดี', 'รักดี', 'มีทรัพย์', 'ศรีสุข', 'รุ่งเรือง', 'มั่งมี', 'ร่ำรวย', 'โชคดี', 'มีโชค', 'เฮงเฮง'];
+            return `คุณ${firstNames[Math.floor(Math.random() * firstNames.length)]} ${lastNames[Math.floor(Math.random() * lastNames.length)]}`;
+        }
+
+        function animateNumbers() {
+            generateBtn.disabled = true;
+            diceIcon.classList.add('spinning');
+            btnText.textContent = 'กำลังสุ่ม...';
+            
+            digits.forEach(digit => digit.classList.add('active'));
+
+            let iterations = 0;
+            const maxIterations = 20;
+            
+            const intervalId = setInterval(() => {
+                updateDigits();
+                iterations++;
+
+                if (iterations >= maxIterations) {
+                    clearInterval(intervalId);
+                    const finalNumber = Math.floor(Math.random() * 1000000)
+                        .toString()
+                        .padStart(6, '0');
+                    
+                    updateDigits(finalNumber.split(''));
+                    checkWinner(finalNumber);
+                    
+                    setTimeout(() => {
+                        generateBtn.disabled = false;
+                        diceIcon.classList.remove('spinning');
+                        btnText.textContent = 'สุ่มเลข';
+                        digits.forEach(digit => digit.classList.remove('active'));
+                    }, 500);
+                }
+            }, 50);
+        }
+
+        function checkWinner(number) {
+            const firstPrize = document.querySelectorAll('.prize-number')[0].textContent;
+            const lastTwoDigits = document.querySelectorAll('.prize-number')[1].textContent;
+            
+            if (number === firstPrize) {
+                addNewWinner({
+                    number: number,
+                    name: getRandomName(),
+                    prize: "ถูกรางวัลที่ 1",
+                    time: "เมื่อสักครู่",
+                    amount: "6,000,000 บาท"
+                });
+            } else if (number.slice(-2) === lastTwoDigits) {
+                addNewWinner({
+                    number: number,
+                    name: getRandomName(),
+                    prize: "ถูกเลขท้าย 2 ตัว",
+                    time: "เมื่อสักครู่",
+                    amount: "2,000 บาท"
+                });
+            }
+        }
+
+        function addNewWinner(winner) {
+            mockWinners.unshift(winner);
+            if (mockWinners.length > 10) {
+                mockWinners.pop();
+            }
+            updateWinnersList();
+            document.querySelector('.winners-panel').classList.add('show');
+        }
+
+        function updateWinnersList() {
+            const winnersList = document.querySelector('.winners-list');
+            winnersList.innerHTML = mockWinners.map(winner => `
+                <div class="winner-item">
+                    <div class="winner-number">${winner.number}</div>
+                    <div class="winner-name">${winner.name}</div>
+                    <div class="winner-prize">${winner.prize}</div>
+                    <div class="winner-amount">${winner.amount}</div>
+                    <div class="winner-time">${winner.time}</div>
+                </div>
+            `).join('');
+        }
+
+        generateBtn.addEventListener('click', animateNumbers);
+        updateWinnersList();
+    </script>
+</body>
+</html>
